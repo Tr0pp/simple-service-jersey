@@ -10,25 +10,23 @@ import java.lang.String;
 @Path("users")
 public class UsersResource {
 
+    UserRepository repository = new UserRepository();
     private static List<User> users = new ArrayList<User>();
 
     @GET
     @Path("/all")
     @Produces(MediaType.APPLICATION_JSON)
     public List<User> users() {
+        List<User> users = repository.getUsers();
         return users;
     }
 
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public User users(@PathParam("id") String id) {
-        User filteredUser = new User();
-
-        return filteredUser = users.stream()
-                .filter(user -> id.equals(Integer.toString(user.getId())))
-                .findAny()
-                .orElse(null);
+    public User users(@PathParam("id") int id) {
+        User user = repository.getUser(id);
+        return user;
     }
 
     @POST
@@ -36,10 +34,8 @@ public class UsersResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public User save(User user) {
-        user.setId(users.size() + 1);
-        users.add(user);
-
-        return user;
+        User createdUser = repository.create(user);
+        return createdUser;
     }
 
     @PATCH
@@ -47,21 +43,21 @@ public class UsersResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public User update(User user) {
-
-        return user;
+        User updatedUser = repository.update(user);
+        return updatedUser;
     }
 
     @DELETE
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public String delete(@PathParam("id") String id) {
-        User deletedUser = users().stream()
-                .filter(user -> id.equals(Integer.toString(user.getId())))
-                .findFirst()
-                .orElse(null);
+    public String delete(@PathParam("id") int id) {
+      User user = repository.getUser(id);
 
-        users.remove(deletedUser);
-
-        return "User id " + id + " deleted.";
+      if(repository.delete(user)){
+          return "User "+ user.getName()+" deleted";
+      } else {
+          return "Not Found.";
+      }
     }
+
 }
