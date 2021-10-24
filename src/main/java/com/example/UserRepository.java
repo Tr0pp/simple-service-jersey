@@ -1,50 +1,30 @@
 package com.example;
 
-import com.mysql.jdbc.Driver;
-
+import javax.persistence.*;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UserRepository {
 
-    Connection connection = null;
+    EntityManager manager;
+    EntityManagerFactory factory;
 
     public UserRepository () {
-        String url = "jdbc:mysql://localhost:3306/app"; //app?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTF8
-        String username = "root";
-        String password = "Root@1234";
-
-        try {
-//            Class.forName("com.mysql.jdbc.Driver"); /* Antigo */
-            Class.forName("com.mysql.cj.jdbc.Driver"); /* Novo */
-            connection = DriverManager.getConnection(url, username, password);
-        } catch (Exception err) {
-            err.printStackTrace();
-        }
-
-
+        factory = Persistence.createEntityManagerFactory("app");
+        manager = factory.createEntityManager();
     }
 
     public List<User> getUsers() {
         List<User> users = new ArrayList<>();
-
-        String sql = "SELECT * FROM user";
+        //HQL - Hibernate Query Language
+        String query = "SELECT u FROM User u WHERE u.id IS NOT NULL";
+        TypedQuery<User> typedQuery = manager.createQuery(query, User.class);
 
         try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            while(resultSet.next()) {
-                User user = new User();
-                user.setId(resultSet.getInt(1));
-                user.setName(resultSet.getString(2));
-                user.setEmail(resultSet.getString(3));
-
-                users.add(user);
-            }
-        } catch (Exception err) {
-            System.out.println(err);
+            users = typedQuery.getResultList();
+        } catch (NoResultException err) {
+            err.printStackTrace();
         }
 
         return users;
@@ -52,81 +32,76 @@ public class UserRepository {
 
     public User getUser(int id) {
         User user = new User();
-        String sql = "SELECT * FROM user WHERE id = "+id;
+        String query = "SELECT u FROM User u WHERE u.id = :id";
+
+        TypedQuery<User> typedQuery = manager.createQuery(query, User.class);
+        typedQuery.setParameter("id", id);
 
         try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
-
-           if(resultSet.next()){
-               user.setId(resultSet.getInt(1));
-               user.setName(resultSet.getString(2));
-               user.setEmail(resultSet.getString(3));
-           } else {
-               user.setId(0);
-               user.setName("Not Found.");
-               user.setEmail("Not Found.");
-           }
-
-        } catch (Exception err) {
-            System.out.println(err);
+            user = typedQuery.getSingleResult();
+        } catch (NoResultException err) {
+            err.printStackTrace();
         }
 
         return user;
     }
 
     public User create(User user) {
-        String sql = "INSERT INTO user (name, email) VALUES (?, ?)";
+        EntityTransaction entityTransaction = null;
 
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement(sql);
-
-            preparedStatement.setString(1, user.getName());
-            preparedStatement.setString(2, user.getEmail());
-
-            preparedStatement.executeUpdate();
+            entityTransaction = manager.getTransaction();
+            entityTransaction.begin();
+            manager.persist(user);
+            entityTransaction.commit();
         } catch (Exception err) {
-            System.out.println(err);
+            //rollback
+            if(entityTransaction != null) {
+                entityTransaction.rollback();
+            }
+            err.printStackTrace();
         }
 
         return user;
     }
 
     public User update(User user) {
-        String sql = "UPDATE user SET name = ?, email = ? WHERE id = ?";
+        EntityTransaction entityTransaction = null;
 
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement(sql);
-
-            preparedStatement.setString(1, user.getName());
-            preparedStatement.setString(2, user.getEmail());
-            preparedStatement.setInt(3, user.getId());
-
-            preparedStatement.executeUpdate();
+            entityTransaction = manager.getTransaction();
+            entityTransaction.begin();
+            manager.merge(user);
+            entityTransaction.commit();
         } catch (Exception err) {
-            System.out.println(err);
+            if(entityTransaction != null){
+                entityTransaction.rollback();
+            }
+            err.printStackTrace();
         }
 
         return user;
     }
 
     public boolean delete(User user){
-        String sql = "DELETE FROM user WHERE id = ?";
-
-        if(user.getName().equals("Not Found.")) {
-            return false;
-        }
+        EntityTransaction entityTransaction = null;
 
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement(sql);
-
-            preparedStatement.setInt(1, user.getId());
-
-            preparedStatement.executeUpdate();
+            entityTransaction = manager.getTransaction();
+            entityTransaction.begin();
+            user = manager.find(User.class, user.getId());
+            if(user == null){
+                entityTransaction.rollback();
+                return false;
+            }
+            manager.remove(user);
+            entityTransaction.commit();
         } catch (Exception err) {
-            System.out.println(err);
+            if(entityTransaction != null) {
+                entityTransaction.rollback();
+            }
+            err.printStackTrace();
         }
-
         return true;
     }
 }

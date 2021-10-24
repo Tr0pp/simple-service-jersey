@@ -1,13 +1,27 @@
 package com.example;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
+import java.io.Serializable;
 
 @XmlRootElement
-public class User {
+@Entity
+@Table(name = "user")
+public class User implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
+    @Column(name = "id")
+    @Id
     private int id;
+
     private String name;
     private String email;
+
+    public User(){}
 
     public int getId() {
         return id;
